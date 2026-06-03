@@ -1,0 +1,14 @@
+# Не тащим в образ лишнее (но оставляем checkpoints/ — там обученная модель).
+.git
+.github
+.venv
+venv
+__pycache__
+*.pyc
+data
+runs
+reports
+tests
+.pytest_cache
+.ruff_cache
+*.md

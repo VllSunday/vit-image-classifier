@@ -36,7 +36,8 @@ vit-image-classifier/
 │   │   └── encoder_from_scratch.py  # standalone Transformer encoder
 │   ├── config.py               # hyperparameters
 │   ├── train.py                # training loop
-│   └── evaluate.py             # metrics on the test set
+│   ├── evaluate.py             # metrics on the test set
+│   └── inference.py            # single-image prediction (used by the demo)
 ├── app/
 │   └── app.py                  # Gradio demo
 ├── reports/                    # confusion matrices + results table
@@ -124,15 +125,29 @@ python -m src.evaluate --checkpoint checkpoints/linear_probe_best.pt
 # Reproduce the full experiment comparison
 python scripts/run_experiments.py
 
-# Launch the Gradio demo
+# Launch the Gradio demo (needs a trained checkpoint)
 python app/app.py
 ```
+
+The demo loads `checkpoints/linear_probe_best.pt` by default; override it with the
+`CHECKPOINT` environment variable. The model input strictly follows the standard
+`(Batch_Size, 3, 224, 224)` format.
 
 Training logs go to TensorBoard:
 
 ```bash
 tensorboard --logdir runs
 ```
+
+### Docker
+
+```bash
+docker build -t vit-classifier .
+docker run -p 7860:7860 vit-classifier      # open http://localhost:7860
+```
+
+The image bakes in whatever checkpoint sits in `checkpoints/` at build time; mount or
+pass a different one with `-e CHECKPOINT=...`.
 
 ## Results
 

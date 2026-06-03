@@ -5,7 +5,7 @@
   - время инференса;
   - превью обработанного изображения (что реально видит модель после resize/norm);
   - attention map — куда «смотрел» ViT;
-  - предупреждение, когда максимальная вероятность < 0.5;
+  - предупреждение, когда максимальная вероятность < 0.68;
   - готовые примеры cat / dog / panda.
 
 Чекпойнт берётся из переменной окружения CHECKPOINT (по умолчанию — лучшая
@@ -28,7 +28,8 @@ from src.inference import Predictor  # noqa: E402
 
 DEFAULT_CHECKPOINT = "checkpoints/linear_probe_best.pt"
 EXAMPLES_DIR = Path(__file__).resolve().parent / "examples"
-CONFIDENCE_THRESHOLD = 0.5
+# Ниже этого порога максимальной вероятности показываем «модель не уверена».
+CONFIDENCE_THRESHOLD = 0.68
 
 
 def _example_images() -> list[list[str]]:
@@ -49,7 +50,9 @@ def build_demo(predictor: Predictor) -> gr.Blocks:
         result = predictor.predict_detailed(image)
         info = f"⏱️ Обработано за **{result['inference_ms']:.0f} мс**"
         if result["max_prob"] < CONFIDENCE_THRESHOLD:
-            info += "\n\n⚠️ Модель не уверена (максимальная вероятность < 0.5)."
+            info += (
+                f"\n\n⚠️ Модель не уверена (максимальная вероятность < {CONFIDENCE_THRESHOLD:.0%})."
+            )
         return result["probs"], result["preview"], result["attention"], info
 
     with gr.Blocks(title="ViT: cat / dog / panda") as demo:

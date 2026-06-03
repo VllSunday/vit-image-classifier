@@ -105,6 +105,7 @@ class Config:
     weight_decay: float = 0.05
     warmup_ratio: float = 0.1
     label_smoothing: float = 0.1
+    grad_clip: float = 1.0  # макс. норма градиента (0 — отключить клиппинг)
     use_amp: bool = True
     early_stopping_patience: int = 5
 

@@ -104,6 +104,17 @@ class PatchEmbedding(nn.Module):
         self.projection.bias.copy_(conv.bias)
 
     @torch.no_grad()
+    def load_from_vit_embeddings(self, embeddings) -> None:
+        """Копируем веса из готового модуля ViTEmbeddings (HuggingFace).
+
+        Полезно, когда предобученный backbone уже загружен и не хочется качать
+        модель повторно.
+        """
+        self.load_projection_from_conv(embeddings.patch_embeddings.projection)
+        self.cls_token.copy_(embeddings.cls_token)
+        self.position_embeddings.copy_(embeddings.position_embeddings)
+
+    @torch.no_grad()
     def load_pretrained(self, model_name: str) -> None:
         """Инициализируем patch embedding весами предобученного ViT.
 
@@ -113,8 +124,4 @@ class PatchEmbedding(nn.Module):
         from transformers import ViTModel
 
         backbone = ViTModel.from_pretrained(model_name)
-        embeddings = backbone.embeddings
-
-        self.load_projection_from_conv(embeddings.patch_embeddings.projection)
-        self.cls_token.copy_(embeddings.cls_token)
-        self.position_embeddings.copy_(embeddings.position_embeddings)
+        self.load_from_vit_embeddings(backbone.embeddings)

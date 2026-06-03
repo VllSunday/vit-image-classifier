@@ -53,14 +53,23 @@ vit-image-classifier/
 
 [Animal Image Dataset (DOG, CAT and PANDA)](https://www.kaggle.com/datasets/ashishsaxena2209/animal-image-datasetdog-cat-and-panda) — 3000 images, 1000 per class.
 
-Download it and place the class folders under `data/`:
+Download it with the helper script (requires a Kaggle API token, see [kagglehub docs](https://github.com/Kaggle/kagglehub#authenticate)):
+
+```bash
+python scripts/download_data.py
+```
+
+The script downloads the dataset and normalizes it into:
 
 ```
 data/
-├── cats/
-├── dogs/
+├── cat/
+├── dog/
 └── panda/
 ```
+
+> No Kaggle token? Download the archive manually from the link above and lay the
+> images out under `data/cat`, `data/dog`, `data/panda`.
 
 ## Setup
 

@@ -11,4 +11,4 @@ Pillow>=10.0
 numpy>=1.26
 matplotlib>=3.8
 tqdm>=4.66
-kagglehub>=0.3
+kagglehub>=1.0

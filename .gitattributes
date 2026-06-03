@@ -1,0 +1,10 @@
+# Нормализуем концы строк: в репозитории всегда LF, чтобы не было
+# мусорных diff-ов между Windows и Linux/macOS.
+* text=auto eol=lf
+
+# Бинарные файлы не трогаем.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.pt binary
+*.pth binary

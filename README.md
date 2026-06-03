@@ -1,5 +1,10 @@
 # vit-image-classifier
 
+[![CI](https://github.com/VllSunday/vit-image-classifier/actions/workflows/ci.yml/badge.svg)](https://github.com/VllSunday/vit-image-classifier/actions/workflows/ci.yml)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/)
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+
 Fine-tuning a Vision Transformer (`google/vit-base-patch16-224`) to classify images into three classes: **cat / dog / panda**.
 
 The project reimplements the core ViT building blocks (patch embedding, `[CLS]` token, positional encoding and the classification head) on top of a pretrained Transformer encoder, and ships a small Gradio demo for inference.
@@ -18,6 +23,8 @@ The project reimplements the core ViT building blocks (patch embedding, `[CLS]` 
 ```
 vit-image-classifier/
 ├── data/                       # dataset (not tracked)
+├── scripts/
+│   └── download_data.py        # download dataset from Kaggle
 ├── src/
 │   ├── data/
 │   │   ├── dataset.py          # loading + train/val/test split
@@ -31,9 +38,13 @@ vit-image-classifier/
 │   └── evaluate.py             # metrics on the test set
 ├── app/
 │   └── app.py                  # Gradio demo
+├── tests/                      # pytest suite
 ├── checkpoints/                # model weights (not tracked)
 ├── runs/                       # TensorBoard logs (not tracked)
+├── .github/workflows/ci.yml    # lint + tests on push / PR
+├── pyproject.toml              # tooling config (ruff, black, pytest)
 ├── requirements.txt
+├── requirements-dev.txt
 ├── Dockerfile
 └── README.md
 ```
@@ -56,10 +67,38 @@ data/
 ```bash
 python -m venv .venv
 .venv\Scripts\activate        # Windows
-pip install -r requirements.txt
+# .venv/bin/activate          # Linux / macOS
 ```
 
-> Install a CUDA-enabled PyTorch build matching your GPU from https://pytorch.org/get-started/locally/.
+PyTorch is installed separately because the build depends on your hardware:
+
+```bash
+# NVIDIA GPU (CUDA 13.2)
+pip install torch torchvision --index-url https://download.pytorch.org/whl/cu132
+
+# CPU only
+pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+```
+
+> Pick the build matching your machine from https://pytorch.org/get-started/locally/.
+
+Then install the rest of the dependencies:
+
+```bash
+pip install -r requirements.txt          # runtime only
+pip install -r requirements-dev.txt      # + linter / formatter / tests
+```
+
+## Development
+
+```bash
+pre-commit install     # run ruff + black on every commit
+ruff check .           # lint
+black .                # format
+pytest                 # run tests
+```
+
+The same checks run in CI (GitHub Actions) on every push and pull request.
 
 ## Usage
 

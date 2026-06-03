@@ -1,10 +1,14 @@
-torch
-torchvision
-transformers
-gradio
-tensorboard
-scikit-learn
-Pillow
-numpy
-matplotlib
-tqdm
+# PyTorch ставится отдельно — сборка зависит от железа (CUDA или CPU):
+#   GPU (CUDA 13.2): pip install torch torchvision --index-url https://download.pytorch.org/whl/cu132
+#   CPU:             pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+# Подробности — в README.
+
+transformers>=4.40
+gradio>=4.0
+tensorboard>=2.16
+scikit-learn>=1.4
+Pillow>=10.0
+numpy>=1.26
+matplotlib>=3.8
+tqdm>=4.66
+kagglehub>=0.3

@@ -47,6 +47,13 @@ def test_gradual_unfreeze_opens_last_layers() -> None:
     assert not any(name.startswith("patch_embedding.") for name in trainable)
 
 
+def test_full_strategy_trains_everything() -> None:
+    cfg = Config(strategy="full")
+    model = ViTClassifier(cfg, pretrained=False)
+    # Стратегия "full" (обучение с нуля) ничего не замораживает.
+    assert all(p.requires_grad for p in model.parameters())
+
+
 def test_param_groups_have_discriminative_lr() -> None:
     cfg = Config(strategy="gradual_unfreeze", num_unfrozen_layers=1)
     model = ViTClassifier(cfg, pretrained=False)

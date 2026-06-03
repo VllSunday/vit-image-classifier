@@ -51,3 +51,17 @@ def test_predict_handles_grayscale(tiny_checkpoint: tuple[Config, Path]) -> None
     # Серое изображение должно корректно приводиться к трём каналам.
     probs = predictor.predict(Image.new("L", (224, 224), color=128))
     assert len(probs) == 3
+
+
+def test_predict_detailed_returns_artifacts(tiny_checkpoint: tuple[Config, Path]) -> None:
+    cfg, path = tiny_checkpoint
+    # eager + перехват внимания нужны для attention map.
+    predictor = Predictor(cfg, path, attn_implementation="eager", capture_attention=True)
+    result = predictor.predict_detailed(Image.new("RGB", (256, 256), color=(10, 20, 30)))
+
+    assert set(result["probs"]) == set(cfg.class_names)
+    assert result["inference_ms"] >= 0.0
+    assert 0.0 <= result["max_prob"] <= 1.0
+    # Превью и attention map — изображения 224x224.
+    assert result["preview"].size == (cfg.image_size, cfg.image_size)
+    assert result["attention"].size == (cfg.image_size, cfg.image_size)

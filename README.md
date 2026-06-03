@@ -38,7 +38,8 @@ vit-image-classifier/
 │   │   └── encoder_from_scratch.py  # отдельный Transformer-энкодер
 │   ├── config.py               # гиперпараметры
 │   ├── train.py                # цикл обучения
-│   └── evaluate.py             # метрики на тесте
+│   ├── evaluate.py             # метрики на тесте
+│   └── inference.py            # предсказание по одной картинке (для демо)
 ├── app/
 │   └── app.py                  # демо на Gradio
 ├── reports/                    # confusion matrix + таблица результатов
@@ -114,15 +115,28 @@ python -m src.evaluate --checkpoint checkpoints/linear_probe_best.pt
 # прогнать всё сравнение экспериментов
 python scripts/run_experiments.py
 
-# демо
+# демо (нужен обученный чекпойнт)
 python app/app.py
 ```
+
+Демо по умолчанию грузит `checkpoints/linear_probe_best.pt`, путь переопределяется
+через переменную `CHECKPOINT`. Вход модели строго `(Batch_Size, 3, 224, 224)`.
 
 Логи обучения в TensorBoard:
 
 ```bash
 tensorboard --logdir runs
 ```
+
+### Docker
+
+```bash
+docker build -t vit-classifier .
+docker run -p 7860:7860 vit-classifier      # http://localhost:7860
+```
+
+В образ зашивается тот чекпойнт, что лежит в `checkpoints/` на момент сборки;
+другой можно смонтировать или передать через `-e CHECKPOINT=...`.
 
 ## Результаты
 

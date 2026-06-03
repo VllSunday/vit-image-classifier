@@ -1,0 +1,34 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "vit-image-classifier"
+version = "0.1.0"
+description = "Fine-tuning a Vision Transformer to classify cat / dog / panda images"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Kaledin Evgenii" }]
+
+[tool.setuptools.packages.find]
+include = ["src*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+# E/W — pycodestyle, F — pyflakes, I — isort, B — bugbear, UP — pyupgrade
+select = ["E", "W", "F", "I", "B", "UP"]
+
+[tool.black]
+line-length = 100
+target-version = ["py310"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+# Добавляем корень репозитория в sys.path, чтобы `import src` работал при любом
+# способе запуска (pytest / python -m pytest), в том числе в CI.
+pythonpath = ["."]

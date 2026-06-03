@@ -22,7 +22,9 @@ from src.models.patch_embedding import PatchEmbedding
 class ViTClassifier(nn.Module):
     """ViT для классификации: (B, 3, 224, 224) -> логиты (B, num_classes)."""
 
-    def __init__(self, cfg: Config, pretrained: bool = True) -> None:
+    def __init__(
+        self, cfg: Config, pretrained: bool = True, attn_implementation: str = "sdpa"
+    ) -> None:
         super().__init__()
         self.cfg = cfg
 
@@ -30,10 +32,14 @@ class ViTClassifier(nn.Module):
         self.patch_embedding = PatchEmbedding(cfg)
 
         # 2. Энкодер и финальный LayerNorm берём из ViT.
+        # attn_implementation="eager" нужен, чтобы можно было достать веса внимания
+        # (для визуализации attention map в демо); по умолчанию "sdpa" — быстрее.
         from transformers import ViTConfig, ViTModel
 
         if pretrained:
-            backbone = ViTModel.from_pretrained(cfg.model_name)
+            backbone = ViTModel.from_pretrained(
+                cfg.model_name, attn_implementation=attn_implementation
+            )
             # Инициализируем наш embedding теми же предобученными весами.
             self.patch_embedding.load_from_vit_embeddings(backbone.embeddings)
         else:
@@ -46,6 +52,7 @@ class ViTClassifier(nn.Module):
                 patch_size=cfg.patch_size,
                 num_channels=cfg.in_channels,
             )
+            vit_config._attn_implementation = attn_implementation
             backbone = ViTModel(vit_config)
 
         # В transformers 5.x стек блоков энкодера лежит прямо в ViTModel.layers
@@ -99,10 +106,13 @@ class ViTClassifier(nn.Module):
             # Замораживаем всё, затем «приоткрываем» последние блоки энкодера.
             self.freeze_backbone()
             self.unfreeze_last_encoder_layers(self.cfg.num_unfrozen_layers)
+        elif strategy == "full":
+            # Обучаем всю сеть целиком (для обучения с нуля) — ничего не замораживаем.
+            pass
         else:
             raise ValueError(
                 f"Неизвестная стратегия дообучения: {strategy!r}. "
-                "Ожидается 'linear_probe' или 'gradual_unfreeze'."
+                "Ожидается 'linear_probe', 'gradual_unfreeze' или 'full'."
             )
 
     # --- Группы параметров для дискриминативного learning rate ---

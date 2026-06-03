@@ -152,28 +152,32 @@ pass a different one with `-e CHECKPOINT=...`.
 ## Results
 
 Two fine-tuning strategies are compared, each in two data regimes — full training
-set (~2100 images) and a small one (~150 images). Evaluation is always on the same
+set (~2100 images) and a small one (~150 images) — plus a **from-scratch baseline**
+(identical architecture, no pretrained weights). Evaluation is always on the same
 held-out test set (450 images, 150 per class).
 
-| Experiment | Trainable params | Epochs to best | Test accuracy | Macro F1 |
-|---|---:|---:|---:|---:|
-| Linear probe (full data) | 2,307 | 3 | 0.9956 | 0.9955 |
-| Gradual unfreeze (full data) | 28,355,331 | 1 | 0.9933 | 0.9933 |
-| Linear probe (small train) | 2,307 | 3 | 0.9933 | 0.9933 |
-| Gradual unfreeze (small train) | 28,355,331 | 3 | 0.9933 | 0.9933 |
+| Experiment | Pretrained | Trainable params | Epochs to best | Test accuracy | Macro F1 |
+|---|:---:|---:|---:|---:|---:|
+| Linear probe (full data) | ✅ | 2,307 | 3 | **0.9956** | 0.9955 |
+| Gradual unfreeze (full data) | ✅ | 28,355,331 | 1 | 0.9933 | 0.9933 |
+| Linear probe (small train) | ✅ | 2,307 | 3 | 0.9933 | 0.9933 |
+| Gradual unfreeze (small train) | ✅ | 28,355,331 | 3 | 0.9933 | 0.9933 |
+| From scratch (no pretraining) | ❌ | 85,800,963 | 17 | 0.6689 | 0.6647 |
 
 <img src="reports/confusion_matrix_linear_probe_full.png" width="420" alt="Confusion matrix (linear probe, full data)">
 
 **Takeaways**
 
-- The pretrained ViT already separates cat / dog / panda almost perfectly, so all
-  strategies land at ~99% test accuracy.
-- Because the task is easy, **linear probing wins on efficiency**: it matches (slightly
-  beats) full fine-tuning while training only **2,307** parameters vs **28M**.
-- With a small training set (~50 images per class) the model still reaches ~99% —
-  the strength of transfer learning from ImageNet weights.
-- Gradual unfreezing reaches peak validation accuracy fastest (1 epoch), but the extra
-  capacity doesn't translate into higher test accuracy on a task this simple.
+- The pretrained ViT already separates cat / dog / panda almost perfectly (ImageNet,
+  which the backbone was trained on, already contains cats, dogs and "giant panda"),
+  so all transfer-learning strategies land at ~99% test accuracy.
+- **Transfer learning is doing the heavy lifting.** The same architecture trained
+  *from scratch* on the same data reaches only **~67%** — a ~32-point gap that is the
+  whole point of fine-tuning a pretrained backbone instead of training one.
+- Because the task is easy for a pretrained model, **linear probing wins on efficiency**:
+  it matches full fine-tuning while training only **2,307** parameters vs **28M**.
+- With a small training set (~50 images per class) the pretrained model still reaches
+  ~99%, while the from-scratch model is data-starved (ViTs need a lot of data).
 
 Confusion matrices for every run are saved under [`reports/`](reports/).
 

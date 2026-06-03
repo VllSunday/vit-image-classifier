@@ -23,6 +23,9 @@ runs/*
 *.pth
 *.pt
 
+# Gradio (кеш/флаги демо)
+.gradio/
+
 # OS
 .DS_Store
 Thumbs.db

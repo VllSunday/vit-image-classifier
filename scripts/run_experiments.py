@@ -59,6 +59,21 @@ EXPERIMENTS = [
             "train_fraction": 0.07,
         },
     },
+    {
+        # Контрольный эксперимент: та же архитектура, но БЕЗ предобученных весов.
+        # Показывает, насколько результат держится на transfer learning.
+        "slug": "from_scratch_full",
+        "name": "From scratch (no pretraining)",
+        "pretrained": False,
+        "overrides": {
+            "strategy": "full",
+            "epochs": 20,
+            "train_fraction": 1.0,
+            "lr_head": 3e-4,
+            "lr_backbone": 3e-4,
+            "early_stopping_patience": 20,
+        },
+    },
 ]
 
 
@@ -79,7 +94,8 @@ def run() -> None:
 
         cfg = dataclasses.replace(Config(), **exp["overrides"])
 
-        result = train(cfg)
+        # Осмысленное имя рана для TensorBoard (вместо стратегия+timestamp).
+        result = train(cfg, pretrained=exp.get("pretrained", True), run_name=exp["slug"])
 
         # Копируем лучший чекпойнт под уникальным именем эксперимента.
         unique_ckpt = cfg.checkpoints_dir / f"{exp['slug']}.pt"

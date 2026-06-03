@@ -142,7 +142,7 @@ def save_checkpoint(
     )
 
 
-def train(cfg: Config, pretrained: bool = True) -> dict:
+def train(cfg: Config, pretrained: bool = True, run_name: str | None = None) -> dict:
     """Полный цикл обучения. Возвращает историю метрик и путь к лучшей модели."""
     set_seed(cfg.seed)
     cfg.ensure_dirs()
@@ -162,7 +162,8 @@ def train(cfg: Config, pretrained: bool = True) -> dict:
 
     scaler = torch.amp.GradScaler(enabled=cfg.use_amp and device == "cuda")
 
-    run_name = f"{cfg.strategy}_{datetime.now():%Y%m%d_%H%M%S}"
+    # Имя рана: либо переданное осмысленное, либо стратегия + временная метка.
+    run_name = run_name or f"{cfg.strategy}_{datetime.now():%Y%m%d_%H%M%S}"
     writer = SummaryWriter(cfg.runs_dir / run_name)
     best_path = cfg.checkpoints_dir / f"{cfg.strategy}_best.pt"
 
@@ -238,6 +239,7 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--unfrozen-layers", type=int, help="Сколько блоков энкодера разморозить.")
     parser.add_argument("--seed", type=int, help="Сид.")
     parser.add_argument("--no-amp", action="store_true", help="Отключить mixed precision.")
+    parser.add_argument("--run-name", type=str, help="Имя рана для TensorBoard.")
     return parser.parse_args()
 
 
@@ -264,8 +266,9 @@ def _config_from_args(args: argparse.Namespace) -> Config:
 
 
 def main() -> None:
-    cfg = _config_from_args(_parse_args())
-    train(cfg)
+    args = _parse_args()
+    cfg = _config_from_args(args)
+    train(cfg, run_name=args.run_name)
 
 
 if __name__ == "__main__":

@@ -75,6 +75,20 @@ def split_samples(
     return train, val, test
 
 
+def subsample_stratified(samples: list[Sample], fraction: float, seed: int) -> list[Sample]:
+    """Берём стратифицированную подвыборку train-сета (для экспериментов с урезанными данными)."""
+    if fraction >= 1.0:
+        return samples
+    labels = [label for _, label in samples]
+    subset, _ = train_test_split(
+        samples,
+        train_size=fraction,
+        stratify=labels,
+        random_state=seed,
+    )
+    return subset
+
+
 class AnimalsDataset(Dataset):
     """Датасет изображений животных: отдаёт (тензор, метка)."""
 
@@ -108,6 +122,9 @@ def build_dataloaders(cfg: Config) -> DataBundle:
     """Собираем DataLoader-ы для train/val/test согласно конфигу."""
     samples = scan_samples(cfg.data_dir, cfg.class_names)
     train, val, test = split_samples(samples, cfg.val_split, cfg.test_split, cfg.seed)
+
+    # Опционально урезаем train (val/test остаются полными ради честной оценки).
+    train = subsample_stratified(train, cfg.train_fraction, cfg.seed)
 
     train_tf = build_train_transform(cfg)
     eval_tf = build_eval_transform(cfg)

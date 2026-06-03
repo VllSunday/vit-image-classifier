@@ -24,7 +24,8 @@ The project reimplements the core ViT building blocks (patch embedding, `[CLS]` 
 vit-image-classifier/
 ├── data/                       # dataset (not tracked)
 ├── scripts/
-│   └── download_data.py        # download dataset from Kaggle
+│   ├── download_data.py        # download dataset from Kaggle
+│   └── run_experiments.py      # train + evaluate both strategies, build results table
 ├── src/
 │   ├── data/
 │   │   ├── dataset.py          # loading + train/val/test split
@@ -38,6 +39,7 @@ vit-image-classifier/
 │   └── evaluate.py             # metrics on the test set
 ├── app/
 │   └── app.py                  # Gradio demo
+├── reports/                    # confusion matrices + results table
 ├── tests/                      # pytest suite
 ├── checkpoints/                # model weights (not tracked)
 ├── runs/                       # TensorBoard logs (not tracked)
@@ -112,11 +114,54 @@ The same checks run in CI (GitHub Actions) on every push and pull request.
 ## Usage
 
 ```bash
-python -m src.train        # train the model
-python -m src.evaluate     # evaluate on the test set
-python app/app.py          # launch the Gradio demo
+# Train (defaults to linear probing; see --help for all options)
+python -m src.train --strategy linear_probe --epochs 5
+python -m src.train --strategy gradual_unfreeze --unfrozen-layers 4 --epochs 5
+
+# Evaluate a checkpoint on the test set (accuracy, per-class F1, confusion matrix)
+python -m src.evaluate --checkpoint checkpoints/linear_probe_best.pt
+
+# Reproduce the full experiment comparison
+python scripts/run_experiments.py
+
+# Launch the Gradio demo
+python app/app.py
 ```
+
+Training logs go to TensorBoard:
+
+```bash
+tensorboard --logdir runs
+```
+
+## Results
+
+Two fine-tuning strategies are compared, each in two data regimes — full training
+set (~2100 images) and a small one (~150 images). Evaluation is always on the same
+held-out test set (450 images, 150 per class).
+
+| Experiment | Trainable params | Epochs to best | Test accuracy | Macro F1 |
+|---|---:|---:|---:|---:|
+| Linear probe (full data) | 2,307 | 3 | 0.9956 | 0.9955 |
+| Gradual unfreeze (full data) | 28,355,331 | 1 | 0.9933 | 0.9933 |
+| Linear probe (small train) | 2,307 | 3 | 0.9933 | 0.9933 |
+| Gradual unfreeze (small train) | 28,355,331 | 3 | 0.9933 | 0.9933 |
+
+<img src="reports/confusion_matrix_linear_probe_full.png" width="420" alt="Confusion matrix (linear probe, full data)">
+
+**Takeaways**
+
+- The pretrained ViT already separates cat / dog / panda almost perfectly, so all
+  strategies land at ~99% test accuracy.
+- Because the task is easy, **linear probing wins on efficiency**: it matches (slightly
+  beats) full fine-tuning while training only **2,307** parameters vs **28M**.
+- With a small training set (~50 images per class) the model still reaches ~99% —
+  the strength of transfer learning from ImageNet weights.
+- Gradual unfreezing reaches peak validation accuracy fastest (1 epoch), but the extra
+  capacity doesn't translate into higher test accuracy on a task this simple.
+
+Confusion matrices for every run are saved under [`reports/`](reports/).
 
 ## Tech stack
 
-PyTorch · torchvision · Hugging Face Transformers · Gradio · TensorBoard
+PyTorch · torchvision · Hugging Face Transformers · Gradio · TensorBoard · scikit-learn

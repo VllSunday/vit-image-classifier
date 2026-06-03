@@ -91,6 +91,8 @@ class Config:
     num_workers: int = 4
     val_split: float = 0.15
     test_split: float = 0.15
+    # Доля train-выборки для обучения (для экспериментов с урезанными данными).
+    train_fraction: float = 1.0
 
     # --- Стратегия дообучения ---
     # "linear_probe"     — заморозить backbone, учить только голову.

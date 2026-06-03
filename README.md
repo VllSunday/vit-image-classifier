@@ -26,7 +26,8 @@ cat / dog / panda.
 vit-image-classifier/
 ├── data/                       # датасет (не в гите)
 ├── scripts/
-│   └── download_data.py        # скачать датасет с Kaggle
+│   ├── download_data.py        # скачать датасет с Kaggle
+│   └── run_experiments.py      # обучить + оценить обе стратегии, собрать таблицу
 ├── src/
 │   ├── data/
 │   │   ├── dataset.py          # загрузка + сплит train/val/test
@@ -40,6 +41,7 @@ vit-image-classifier/
 │   └── evaluate.py             # метрики на тесте
 ├── app/
 │   └── app.py                  # демо на Gradio
+├── reports/                    # confusion matrix + таблица результатов
 ├── tests/                      # pytest
 ├── checkpoints/                # веса (не в гите)
 ├── runs/                       # логи TensorBoard (не в гите)
@@ -102,11 +104,50 @@ pytest
 ## Запуск
 
 ```bash
-python -m src.train        # обучение
-python -m src.evaluate     # оценка на тесте
-python app/app.py          # демо на Gradio
+# обучение (по умолчанию linear probing, остальные опции в --help)
+python -m src.train --strategy linear_probe --epochs 5
+python -m src.train --strategy gradual_unfreeze --unfrozen-layers 4 --epochs 5
+
+# оценка чекпойнта на тесте (accuracy, F1 по классам, confusion matrix)
+python -m src.evaluate --checkpoint checkpoints/linear_probe_best.pt
+
+# прогнать всё сравнение экспериментов
+python scripts/run_experiments.py
+
+# демо
+python app/app.py
 ```
+
+Логи обучения в TensorBoard:
+
+```bash
+tensorboard --logdir runs
+```
+
+## Результаты
+
+Сравниваю две стратегии дообучения, каждую в двух режимах — полный трейн
+(~2100 картинок) и маленький (~150). Тест всегда один и тот же — 450 картинок,
+по 150 на класс.
+
+| Эксперимент | Обучаемых параметров | Эпох до лучшего | Test accuracy | Macro F1 |
+|---|---:|---:|---:|---:|
+| Linear probe (полные данные) | 2 307 | 3 | 0.9956 | 0.9955 |
+| Gradual unfreeze (полные данные) | 28 355 331 | 1 | 0.9933 | 0.9933 |
+| Linear probe (маленький трейн) | 2 307 | 3 | 0.9933 | 0.9933 |
+| Gradual unfreeze (маленький трейн) | 28 355 331 | 3 | 0.9933 | 0.9933 |
+
+<img src="reports/confusion_matrix_linear_probe_full.png" width="420" alt="Confusion matrix (linear probe, full data)">
+
+Предобученный ViT и так почти идеально разделяет cat / dog / panda, поэтому все
+варианты упираются в ~99%. Раз задача лёгкая, linear probing выигрывает по
+эффективности — та же точность при 2 307 обучаемых параметрах против 28M. Даже на
+маленьком трейне (~50 картинок на класс) модель держит ~99% за счёт переноса с
+ImageNet. Gradual unfreeze быстрее всех выходит на пик по валидации (1 эпоха), но
+на такой простой задаче лишняя ёмкость прироста на тесте не даёт.
+
+Confusion matrix по каждому прогону лежат в [`reports/`](reports/).
 
 ## Стек
 
-PyTorch, torchvision, Hugging Face Transformers, Gradio, TensorBoard
+PyTorch, torchvision, Hugging Face Transformers, Gradio, TensorBoard, scikit-learn

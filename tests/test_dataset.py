@@ -14,6 +14,7 @@ from src.data.dataset import (
     build_dataloaders,
     scan_samples,
     split_samples,
+    subsample_stratified,
 )
 from src.data.transforms import build_eval_transform
 
@@ -64,6 +65,23 @@ def test_split_is_deterministic(data_dir: Path) -> None:
     first = split_samples(samples, 0.15, 0.15, seed=42)
     second = split_samples(samples, 0.15, 0.15, seed=42)
     assert [p for p, _ in first[0]] == [p for p, _ in second[0]]
+
+
+def test_subsample_stratified_keeps_balance(data_dir: Path) -> None:
+    samples = scan_samples(data_dir, CLASS_NAMES)
+    subset = subsample_stratified(samples, fraction=0.5, seed=42)
+
+    # Половина выборки, баланс классов сохранён.
+    assert len(subset) == len(samples) // 2
+    counts = {label: 0 for label in range(len(CLASS_NAMES))}
+    for _, label in subset:
+        counts[label] += 1
+    assert all(c == PER_CLASS // 2 for c in counts.values())
+
+
+def test_subsample_full_returns_all(data_dir: Path) -> None:
+    samples = scan_samples(data_dir, CLASS_NAMES)
+    assert subsample_stratified(samples, fraction=1.0, seed=42) is samples
 
 
 def test_dataset_returns_tensor_and_label(data_dir: Path) -> None:

@@ -24,6 +24,33 @@ from src.data.transforms import build_eval_transform
 from src.models.vit import ViTClassifier
 
 
+def resolve_checkpoint(
+    checkpoint: str | Path,
+    repo_id: str | None = None,
+    filename: str | None = None,
+) -> Path:
+    """Находим чекпойнт локально, иначе скачиваем с Hugging Face Hub.
+
+    Это позволяет запустить демо «из коробки» (например, в Docker) без обучения:
+    если локального файла нет, но задан repo_id, веса один раз скачиваются с Hub
+    и кешируются (повторные запуски берут их из кеша, заново не качают).
+    """
+    path = Path(checkpoint)
+    if path.exists():
+        return path
+
+    if repo_id:
+        from huggingface_hub import hf_hub_download
+
+        downloaded = hf_hub_download(repo_id=repo_id, filename=filename or path.name)
+        return Path(downloaded)
+
+    raise FileNotFoundError(
+        f"Не найден чекпойнт: {checkpoint}. Сначала обучите модель "
+        "(python -m src.train) или задайте repo_id на Hugging Face Hub."
+    )
+
+
 class Predictor:
     """Обёртка над моделью для предсказания вероятностей классов по изображению."""
 

@@ -1,6 +1,6 @@
 """Patch embedding для Vision Transformer (реализация вручную).
 
-Здесь собрана вся «входная» часть ViT согласно ТЗ:
+Здесь собрана вся «входная» часть ViT:
   1. нарезка изображения на патчи 16x16;
   2. линейная проекция каждого флаттен-патча в вектор размерности embed_dim;
   3. добавление обучаемого [CLS] токена в начало последовательности;
@@ -9,7 +9,7 @@
 Нарезка на патчи сделана явно через reshape/permute (а не спрятана в Conv2d),
 чтобы было видно, что происходит. При этом операция математически эквивалентна
 свёртке с ядром 16x16 и шагом 16 — это используется для загрузки предобученных
-весов из google/vit-base-patch16-224 (см. load_pretrained).
+весов из google/vit-base-patch16-224.
 """
 
 from __future__ import annotations
@@ -113,15 +113,3 @@ class PatchEmbedding(nn.Module):
         self.load_projection_from_conv(embeddings.patch_embeddings.projection)
         self.cls_token.copy_(embeddings.cls_token)
         self.position_embeddings.copy_(embeddings.position_embeddings)
-
-    @torch.no_grad()
-    def load_pretrained(self, model_name: str) -> None:
-        """Инициализируем patch embedding весами предобученного ViT.
-
-        Берём из google/vit-base-patch16-224 свёрточную проекцию патчей,
-        [CLS] токен и позиционные эмбеддинги.
-        """
-        from transformers import ViTModel
-
-        backbone = ViTModel.from_pretrained(model_name)
-        self.load_from_vit_embeddings(backbone.embeddings)

@@ -4,6 +4,7 @@
 # Подробности — в README.
 
 transformers>=4.40
+huggingface_hub>=0.23
 gradio>=4.0
 tensorboard>=2.16
 scikit-learn>=1.4

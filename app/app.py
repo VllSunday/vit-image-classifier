@@ -9,7 +9,9 @@
   - готовые примеры cat / dog / panda.
 
 Чекпойнт берётся из переменной окружения CHECKPOINT (по умолчанию — лучшая
-linear-probe модель). Перед запуском нужно обучить модель (python -m src.train).
+linear-probe модель). Если локального файла нет, веса автоматически качаются с
+Hugging Face Hub (репозиторий из HF_REPO_ID, по умолчанию — DEFAULT_HF_REPO),
+поэтому демо запускается «из коробки» без обучения.
 """
 
 from __future__ import annotations
@@ -24,9 +26,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import gradio as gr  # noqa: E402
 
 from src.config import Config  # noqa: E402
-from src.inference import Predictor  # noqa: E402
+from src.inference import Predictor, resolve_checkpoint  # noqa: E402
 
 DEFAULT_CHECKPOINT = "checkpoints/linear_probe_best.pt"
+# Репозиторий с весами на Hugging Face Hub — отсюда скачиваем, если локально нет.
+DEFAULT_HF_REPO = "A11Sunday/vit-cat-dog-panda"
 EXAMPLES_DIR = Path(__file__).resolve().parent / "examples"
 # Ниже этого порога максимальной вероятности показываем «модель не уверена».
 CONFIDENCE_THRESHOLD = 0.68
@@ -85,11 +89,9 @@ def build_demo(predictor: Predictor) -> gr.Blocks:
 
 def main() -> None:
     checkpoint = os.environ.get("CHECKPOINT", DEFAULT_CHECKPOINT)
-    if not Path(checkpoint).exists():
-        raise FileNotFoundError(
-            f"Не найден чекпойнт: {checkpoint}. Сначала обучите модель "
-            "(python -m src.train) или задайте путь через переменную CHECKPOINT."
-        )
+    repo_id = os.environ.get("HF_REPO_ID", DEFAULT_HF_REPO)
+    # Локальный путь, иначе скачиваем веса с Hugging Face Hub (кешируется).
+    checkpoint = resolve_checkpoint(checkpoint, repo_id=repo_id)
 
     # eager-внимание + перехват весов нужны для attention map.
     predictor = Predictor(Config(), checkpoint, attn_implementation="eager", capture_attention=True)

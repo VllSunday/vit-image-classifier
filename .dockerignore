@@ -1,4 +1,5 @@
-# Не тащим в образ лишнее (но оставляем checkpoints/ — там обученная модель).
+# Не тащим в образ лишнее. Веса в образ не кладём — они качаются с Hugging Face
+# Hub при первом запуске, поэтому checkpoints/ тоже исключаем.
 .git
 .github
 .venv
@@ -9,6 +10,7 @@ data
 runs
 reports
 tests
+checkpoints
 .pytest_cache
 .ruff_cache
 *.md

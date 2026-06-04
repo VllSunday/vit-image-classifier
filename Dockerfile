@@ -9,10 +9,12 @@ RUN pip install --no-cache-dir \
         torch torchvision --index-url https://download.pytorch.org/whl/cpu \
  && pip install --no-cache-dir -r requirements.txt
 
-# Затем исходники и обученный чекпойнт.
+# Затем исходники (веса в образ не кладём — они качаются с Hugging Face Hub).
 COPY . .
 
-# Путь к чекпойнту можно переопределить при запуске: -e CHECKPOINT=...
+# Веса берутся из этого репозитория на Hub при первом запуске, если локально их
+# нет. Переопределить можно при запуске: -e HF_REPO_ID=... или -e CHECKPOINT=...
+ENV HF_REPO_ID=A11Sunday/vit-cat-dog-panda
 ENV CHECKPOINT=checkpoints/linear_probe_best.pt
 EXPOSE 7860
 

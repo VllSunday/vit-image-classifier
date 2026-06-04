@@ -4,7 +4,8 @@
   - топ-3 класса с вероятностями;
   - время инференса;
   - превью обработанного изображения (что реально видит модель после resize/norm);
-  - attention map — куда «смотрел» ViT;
+  - серия attention rollout-карт по нарастающей глубине слоёв — как ViT от слоя
+    к слою фокусируется на объекте;
   - предупреждение, когда максимальная вероятность < 0.68;
   - готовые примеры cat / dog / panda.
 
@@ -57,13 +58,14 @@ def build_demo(predictor: Predictor) -> gr.Blocks:
             info += (
                 f"\n\n⚠️ Модель не уверена (максимальная вероятность < {CONFIDENCE_THRESHOLD:.0%})."
             )
-        return result["probs"], result["preview"], result["attention"], info
+        return result["probs"], result["preview"], result["attention_maps"], info
 
     with gr.Blocks(title="ViT: cat / dog / panda") as demo:
         gr.Markdown(
             "# ViT: cat / dog / panda\n"
             "Загрузите изображение животного — модель вернёт топ-3 вероятности, "
-            "покажет, что она видит после предобработки, и куда «смотрит» (attention map)."
+            "покажет, что она видит после предобработки, и как от слоя к слою "
+            "фокусируется на объекте (attention rollout по нарастающей глубине)."
         )
         with gr.Row():
             with gr.Column():
@@ -75,11 +77,15 @@ def build_demo(predictor: Predictor) -> gr.Blocks:
             with gr.Column():
                 label_output = gr.Label(num_top_classes=3, label="Предсказание (топ-3)")
                 info_output = gr.Markdown()
-                with gr.Row():
-                    preview_output = gr.Image(label="Что видит модель (224×224)")
-                    attention_output = gr.Image(label="Attention map")
+                preview_output = gr.Image(label="Что видит модель (224×224)")
+                attention_gallery = gr.Gallery(
+                    label="Attention rollout: ранние слои → все слои (фокус сжимается на объект)",
+                    columns=2,
+                    height="auto",
+                    object_fit="contain",
+                )
 
-        outputs = [label_output, preview_output, attention_output, info_output]
+        outputs = [label_output, preview_output, attention_gallery, info_output]
         classify_button.click(classify, inputs=image_input, outputs=outputs)
         # Автоматически классифицируем сразу после загрузки картинки.
         image_input.upload(classify, inputs=image_input, outputs=outputs)
@@ -93,7 +99,7 @@ def main() -> None:
     # Локальный путь, иначе скачиваем веса с Hugging Face Hub (кешируется).
     checkpoint = resolve_checkpoint(checkpoint, repo_id=repo_id)
 
-    # eager-внимание + перехват весов нужны для attention map.
+    # eager-внимание + перехват весов нужны для attention rollout-карт по слоям.
     predictor = Predictor(Config(), checkpoint, attn_implementation="eager", capture_attention=True)
     demo = build_demo(predictor)
     # server_name=0.0.0.0 нужен, чтобы демо было доступно из Docker-контейнера.

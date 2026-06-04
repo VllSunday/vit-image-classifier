@@ -9,6 +9,17 @@ Fine-tuning a Vision Transformer (`google/vit-base-patch16-224`) to classify ima
 
 The project reimplements the core ViT building blocks (patch embedding, `[CLS]` token, positional encoding and the classification head) on top of a pretrained Transformer encoder, and ships a small Gradio demo for inference.
 
+## Quick start
+
+No training and no dataset required — try the demo straight away. The fine-tuned weights are pulled from the [Hugging Face Hub](https://huggingface.co/A11Sunday/vit-cat-dog-panda) on first run:
+
+```bash
+docker build -t vit-classifier .
+docker run -p 7860:7860 vit-classifier      # then open http://localhost:7860
+```
+
+Upload an image (or pick a built-in example) and you get the top-3 class probabilities, a preview of what the model actually sees after preprocessing, and an attention rollout that shows how the focus narrows onto the object from the early layers to the full encoder.
+
 ## Features
 
 - Custom preprocessing pipeline (resize to 224×224 + RGB normalization)
@@ -16,7 +27,7 @@ The project reimplements the core ViT building blocks (patch embedding, `[CLS]` 
 - Transfer learning on a pretrained `vit-base-patch16-224` backbone
 - Training with mixed precision, cosine LR schedule with warmup and TensorBoard logging
 - Evaluation with accuracy, per-class F1 and a confusion matrix
-- Gradio web demo (upload an image → top-3 class probabilities)
+- Gradio web demo: top-3 probabilities, a preview of the model's input, and an attention rollout (early layers → full encoder) visualizing where the model looks
 
 ## Project structure
 

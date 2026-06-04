@@ -62,6 +62,11 @@ def test_predict_detailed_returns_artifacts(tiny_checkpoint: tuple[Config, Path]
     assert set(result["probs"]) == set(cfg.class_names)
     assert result["inference_ms"] >= 0.0
     assert 0.0 <= result["max_prob"] <= 1.0
-    # Превью и attention map — изображения 224x224.
+    # Превью — изображение 224x224.
     assert result["preview"].size == (cfg.image_size, cfg.image_size)
-    assert result["attention"].size == (cfg.image_size, cfg.image_size)
+    # Серия накопительных attention-карт: список (изображение 224x224, подпись).
+    maps = result["attention_maps"]
+    assert len(maps) >= 1
+    for overlay, caption in maps:
+        assert overlay.size == (cfg.image_size, cfg.image_size)
+        assert isinstance(caption, str)

@@ -5,8 +5,9 @@
 Вход модели строго соответствует стандарту (Batch_Size, 3, 224, 224).
 
 Дополнительно умеет отдавать «расширенный» результат для UI: время инференса,
-превью обработанного изображения (что реально видит модель) и attention map —
-карту внимания [CLS] токена к патчам последнего блока энкодера.
+превью обработанного изображения (что реально видит модель) и серию attention
+rollout-карт на нескольких глубинах — видно, как [CLS] токен от слоя к слою
+сосредотачивается на самом объекте.
 """
 
 from __future__ import annotations
@@ -98,9 +99,21 @@ class Predictor:
         probs = torch.softmax(self.model(batch), dim=1)[0]
         return {cls: float(p) for cls, p in zip(self.class_names, probs.tolist(), strict=True)}
 
+    @staticmethod
+    def _rollout_depths(num_layers: int) -> list[int]:
+        """Две накопительные глубины: ранние слои (≈треть) и все слои.
+
+        Для 12 слоёв энкодера это [4, 12] — карта «широко → сфокусировано». У
+        коротких моделей глубины схлопываются и дедуплицируются, чтобы не было
+        пустого префикса и повторов.
+        """
+        depths = {max(1, round(num_layers / 3)), num_layers}
+        return sorted(depths)
+
     @torch.no_grad()
     def predict_detailed(self, image: Image.Image) -> dict:
-        """Расширенный результат для UI: вероятности, тайминг, превью и attention map."""
+        """Расширенный результат для UI: вероятности, тайминг, превью и серия
+        attention rollout-карт по нарастающей глубине слоёв."""
         batch = self.preprocess(image)
         self._attentions = []  # очищаем перед прогоном, hooks наполнят заново
 
@@ -118,15 +131,21 @@ class Predictor:
         }
 
         preview = self._denormalize(batch[0])
-        attention = None
+        # Накопительный rollout на двух глубинах: ранние слои смотрят широко, все
+        # слои вместе — сфокусированно на объекте. Видно, как сужается фокус.
+        attention_maps: list[tuple[Image.Image, str]] = []
         if self._attentions:
-            attention = self._attention_overlay(preview, self._attentions)
+            total = len(self._attentions)
+            for depth in self._rollout_depths(total):
+                overlay = self._attention_overlay(preview, self._attentions[:depth])
+                label = "Все слои" if depth == total else "Ранние слои"
+                attention_maps.append((overlay, f"{label} (1–{depth})"))
 
         return {
             "probs": probs,
             "inference_ms": inference_ms,
             "preview": preview,
-            "attention": attention,
+            "attention_maps": attention_maps,
             "max_prob": max(probs.values()),
         }
 
@@ -139,7 +158,10 @@ class Predictor:
         return Image.fromarray(array)
 
     def _attention_overlay(
-        self, base_image: Image.Image, attentions: list[torch.Tensor]
+        self,
+        base_image: Image.Image,
+        attentions: list[torch.Tensor],
+        discard_ratio: float = 0.5,
     ) -> Image.Image:
         """Attention rollout по всем слоям -> тепловая карта поверх изображения.
 
@@ -147,6 +169,11 @@ class Predictor:
         единичную матрицу (учёт residual-связи) и перемножаем карты всех слоёв.
         Так получается, насколько каждый патч влияет на итоговый [CLS] токен —
         локализация объекта чище, чем у одиночного последнего слоя.
+
+        discard_ratio: доля самых слабых весов внимания, которую обнуляем на каждом
+        слое перед перемножением (приём из vit-explain); 0 — отключить. Умеренные
+        значения слегка подавляют шум фона; слишком большие (≈0.9) для linear-probe
+        модели вредят — сильнейшие связи уходят на контрастный фон, а не на объект.
         """
         grid = self.cfg.image_size // self.cfg.patch_size  # 14
 
@@ -154,6 +181,15 @@ class Predictor:
         rollout = torch.eye(num_tokens, device=attentions[0].device)
         for attn in attentions:
             averaged = attn[0].mean(dim=0)  # усреднение по головам -> (N, N)
+            # Обнуляем нижние discard_ratio самых слабых связей — остаются только
+            # сильные, поэтому объект в карте проступает чётче.
+            if discard_ratio > 0:
+                flat = averaged.flatten()
+                k = int(flat.numel() * discard_ratio)
+                if k > 0:
+                    _, weakest = flat.topk(k, largest=False)
+                    flat[weakest] = 0.0
+                averaged = flat.view_as(averaged)
             averaged = averaged + torch.eye(num_tokens, device=averaged.device)  # residual
             averaged = averaged / averaged.sum(dim=-1, keepdim=True)  # нормировка строк
             rollout = averaged @ rollout

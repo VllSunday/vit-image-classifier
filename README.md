@@ -11,6 +11,15 @@ cat / dog / panda.
 и классификационная голова) написаны руками поверх предобученного энкодера.
 К проекту приложено небольшое демо на Gradio.
 
+## Быстрый старт
+
+Без обучения и без датасета — веса тянутся с Hugging Face Hub:
+
+```bash
+docker build -t vit-classifier .
+docker run -p 7860:7860 vit-classifier   # http://localhost:7860
+```
+
 ## Что умеет
 
 - препроцессинг (ресайз 224×224 + нормализация RGB)
@@ -18,7 +27,7 @@ cat / dog / panda.
 - transfer learning на предобученном vit-base-patch16-224
 - обучение с mixed precision, косинусным LR с warmup и логами в TensorBoard
 - оценка: accuracy, F1 по классам, confusion matrix
-- демо на Gradio (загрузил картинку → топ-3 вероятности)
+- демо на Gradio: топ-3 вероятности и attention rollout по слоям
 
 ## Структура
 
@@ -46,10 +55,6 @@ vit-image-classifier/
 ├── tests/                      # pytest
 ├── checkpoints/                # веса (не в гите)
 ├── runs/                       # логи TensorBoard (не в гите)
-├── .github/workflows/ci.yml    # линт + тесты на push / PR
-├── pyproject.toml              # конфиг тулинга (ruff, black, pytest)
-├── requirements.txt
-├── requirements-dev.txt
 ├── Dockerfile
 └── README.md
 ```

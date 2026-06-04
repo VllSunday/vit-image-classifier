@@ -15,7 +15,7 @@ from src.config import Config
 def build_eval_transform(cfg: Config) -> transforms.Compose:
     """Преобразование для валидации/теста/инференса.
 
-    Только то, что требует ТЗ: resize до 224x224 и нормализация трёх каналов.
+    resize до 224x224 и нормализация трёх каналов.
     """
     return transforms.Compose(
         [

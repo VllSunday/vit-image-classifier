@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 import torch
 
-from src.training.scheduler import WarmupCosineScheduler
+from src.scheduler import WarmupCosineScheduler
 
 
 def _make_optimizer() -> torch.optim.Optimizer:

@@ -115,12 +115,25 @@ python -m src.evaluate --checkpoint checkpoints/linear_probe_best.pt
 # прогнать всё сравнение экспериментов
 python scripts/run_experiments.py
 
-# демо (нужен обученный чекпойнт)
+# демо
 python app/app.py
 ```
 
-Демо по умолчанию грузит `checkpoints/linear_probe_best.pt`, путь переопределяется
-через переменную `CHECKPOINT`. Вход модели строго `(Batch_Size, 3, 224, 224)`.
+Демо берёт `checkpoints/linear_probe_best.pt`, если он есть, иначе качает веса
+с Hugging Face Hub (`A11Sunday/vit-cat-dog-panda`) и кеширует — обучать ничего
+не надо. Локальный путь переопределяется через `CHECKPOINT`, репозиторий на
+Hub — через `HF_REPO_ID`. Вход модели строго `(Batch_Size, 3, 224, 224)`.
+
+### Предобученные веса
+
+Дообученный чекпойнт лежит на Hugging Face Hub:
+[`A11Sunday/vit-cat-dog-panda`](https://huggingface.co/A11Sunday/vit-cat-dog-panda),
+подтягивается сам при первом запуске. Чтобы выложить свой:
+
+```bash
+hf auth login                                              # токен с правами на запись
+python scripts/push_to_hub.py --repo-id A11Sunday/vit-cat-dog-panda
+```
 
 Логи обучения в TensorBoard:
 
@@ -135,8 +148,9 @@ docker build -t vit-classifier .
 docker run -p 7860:7860 vit-classifier      # http://localhost:7860
 ```
 
-В образ зашивается тот чекпойнт, что лежит в `checkpoints/` на момент сборки;
-другой можно смонтировать или передать через `-e CHECKPOINT=...`.
+Обучение и локальные веса не нужны: при первом старте контейнер сам качает
+чекпойнт с Hub. Другой репозиторий — `-e HF_REPO_ID=...`, свой чекпойнт —
+смонтировать и задать `-e CHECKPOINT=...`.
 
 ## Результаты
 

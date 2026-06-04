@@ -27,7 +27,7 @@ from tqdm import tqdm
 from src.config import Config, set_seed
 from src.data.dataset import build_dataloaders
 from src.models.vit import ViTClassifier
-from src.training.scheduler import WarmupCosineScheduler
+from src.scheduler import WarmupCosineScheduler
 
 
 def build_optimizer(model: ViTClassifier, cfg: Config) -> AdamW:

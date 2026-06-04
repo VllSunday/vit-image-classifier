@@ -20,6 +20,7 @@ import matplotlib.pyplot as plt  # noqa: E402
 import numpy as np  # noqa: E402
 import torch  # noqa: E402
 from sklearn.metrics import (  # noqa: E402
+    ConfusionMatrixDisplay,
     accuracy_score,
     classification_report,
     confusion_matrix,
@@ -80,28 +81,11 @@ def plot_confusion_matrix(
     """Рисуем confusion matrix и сохраняем в PNG."""
     out_path.parent.mkdir(parents=True, exist_ok=True)
 
+    # ConfusionMatrixDisplay сам подписывает ячейки контрастным цветом и оси.
+    display = ConfusionMatrixDisplay(confusion_matrix=matrix, display_labels=class_names)
     fig, ax = plt.subplots(figsize=(4.5, 4))
-    im = ax.imshow(matrix, cmap="Blues")
-    fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
-
-    ax.set_xticks(range(len(class_names)), labels=class_names)
-    ax.set_yticks(range(len(class_names)), labels=class_names)
-    ax.set_xlabel("Predicted")
-    ax.set_ylabel("True")
+    display.plot(ax=ax, cmap="Blues", colorbar=True)
     ax.set_title(title)
-
-    # Подписываем числа в ячейках, выбирая контрастный цвет текста.
-    threshold = matrix.max() / 2 if matrix.max() > 0 else 0
-    for i in range(matrix.shape[0]):
-        for j in range(matrix.shape[1]):
-            ax.text(
-                j,
-                i,
-                int(matrix[i, j]),
-                ha="center",
-                va="center",
-                color="white" if matrix[i, j] > threshold else "black",
-            )
 
     fig.tight_layout()
     fig.savefig(out_path, dpi=150)

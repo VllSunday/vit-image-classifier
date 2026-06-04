@@ -125,13 +125,26 @@ python -m src.evaluate --checkpoint checkpoints/linear_probe_best.pt
 # Reproduce the full experiment comparison
 python scripts/run_experiments.py
 
-# Launch the Gradio demo (needs a trained checkpoint)
+# Launch the Gradio demo
 python app/app.py
 ```
 
-The demo loads `checkpoints/linear_probe_best.pt` by default; override it with the
-`CHECKPOINT` environment variable. The model input strictly follows the standard
-`(Batch_Size, 3, 224, 224)` format.
+The demo loads `checkpoints/linear_probe_best.pt` if present; otherwise it downloads
+the weights from the Hugging Face Hub (`A11Sunday/vit-cat-dog-panda`) and caches them,
+so **you don't need to train anything to try it**. Override the local path with the
+`CHECKPOINT` environment variable or the Hub repo with `HF_REPO_ID`. The model input
+strictly follows the standard `(Batch_Size, 3, 224, 224)` format.
+
+### Pretrained weights
+
+The fine-tuned checkpoint lives on the Hugging Face Hub:
+[`A11Sunday/vit-cat-dog-panda`](https://huggingface.co/A11Sunday/vit-cat-dog-panda).
+It is fetched automatically on first run. To publish a (re)trained checkpoint yourself:
+
+```bash
+hf auth login                                              # token with write access
+python scripts/push_to_hub.py --repo-id A11Sunday/vit-cat-dog-panda
+```
 
 Training logs go to TensorBoard:
 
@@ -146,8 +159,9 @@ docker build -t vit-classifier .
 docker run -p 7860:7860 vit-classifier      # open http://localhost:7860
 ```
 
-The image bakes in whatever checkpoint sits in `checkpoints/` at build time; mount or
-pass a different one with `-e CHECKPOINT=...`.
+No training and no local weights required: on first launch the container downloads the
+checkpoint from the Hugging Face Hub. Point it at a different Hub repo with
+`-e HF_REPO_ID=...`, or mount your own checkpoint and set `-e CHECKPOINT=...`.
 
 ## Results
 

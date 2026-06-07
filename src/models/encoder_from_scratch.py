@@ -45,37 +45,6 @@ PRE-NORM (LayerNorm стоит ПЕРЕД под-слоем, а не после)
                                                     выход блока
 
 После всех N блоков идёт ещё один финальный LayerNorm.
-
-
-Мой план реализации (заполняю заглушки сверху вниз)
-===================================================
-Шаг 1. Scaled Dot-Product Attention — сердце трансформера.
-       Формула: Attention(Q, K, V) = softmax(Q·Kᵀ / √d_k) · V
-       Заодно разобраться: зачем скалярное произведение, зачем делить на √d_k,
-       зачем softmax, что вообще такое «карта внимания».
-
-Шаг 2. MultiHeadSelfAttention — несколько голов внимания параллельно.
-       - линейные проекции входа в Q, K, V;
-       - «разрезаю» вектор на num_heads голов по 64 числа;
-       - применяю attention из шага 1 в каждой голове;
-       - склеиваю головы обратно и прогоняю через выходную проекцию.
-
-Шаг 3. MLP (FeedForward) — позиционный двухслойный персептрон.
-       Linear(768→3072) → GELU → Linear(3072→768). Работает с каждым
-       токеном независимо; именно тут «перемешиваются» признаки внутри токена.
-
-Шаг 4. EncoderBlock (аналог ViTLayer) — собираю шаги 2 и 3 вместе
-       с двумя LayerNorm и двумя residual-связями по pre-norm схеме.
-
-Шаг 5. TransformerEncoder — ModuleList из num_layers блоков + финальный
-       LayerNorm. Полный аналог backbone.layers + backbone.layernorm.
-
-Шаг 6 (опционально). Проверка корректности:
-       - прогнать случайный тензор и убедиться в формах/конечности значений;
-       - если будет настроение — загрузить веса из HF ViTLayer и сверить выход
-         с эталоном, чтобы доказать себе, что моя математика идентична библиотечной.
-
-Пока всё заглушки с TODO. Реализую по одному шагу.
 """
 
 from __future__ import annotations
@@ -103,14 +72,21 @@ def scaled_dot_product_attention(
     Возвращает:
         out:     (B, num_heads, seq_len, head_dim) — взвешенная сумма V;
         attn:    (B, num_heads, seq_len, seq_len)  — карты внимания (веса).
-
-    TODO (Шаг 1):
-      1. d_k = head_dim (последняя ось q).
-      2. scores = q @ k.transpose(-2, -1) / sqrt(d_k)   -> (..., seq, seq)
-      3. attn = softmax(scores, dim=-1)
-      4. out = attn @ v
     """
-    raise NotImplementedError("Шаг 1: дописать scaled dot-product attention")
+    # размер головы — по нему нормируем скоры, иначе при больших d_k
+    # скалярные произведения разъезжаются и softmax уходит в насыщение
+    d_k = q.shape[-1]
+
+    # для каждой пары токенов (i, j) считаю, насколько i «смотрит» на j:
+    # (B, h, seq, d) @ (B, h, d, seq) -> (B, h, seq, seq)
+    scores = q @ k.transpose(-2, -1) / math.sqrt(d_k)
+
+    # по последней оси (по всем j) превращаю скоры в распределение весов
+    attn = F.softmax(scores, dim=-1)
+
+    # взвешенно собираю V: (B, h, seq, seq) @ (B, h, seq, d) -> (B, h, seq, d)
+    out = attn @ v
+    return out, attn
 
 
 # ---------------------------------------------------------------------------
@@ -119,26 +95,47 @@ def scaled_dot_product_attention(
 class MultiHeadSelfAttention(nn.Module):
     """Многоголовое самовнимание: (B, seq, dim) -> (B, seq, dim).
 
-    TODO (Шаг 2):
-      init:
-        - сохранить num_heads, head_dim = embed_dim // num_heads;
-        - проекции q_proj, k_proj, v_proj: nn.Linear(embed_dim, embed_dim);
-          (в HF ViT это три отдельных Linear с bias=True);
-        - выходная проекция out_proj: nn.Linear(embed_dim, embed_dim).
-      forward(x):
-        - посчитать Q, K, V из x;
-        - reshape (B, seq, num_heads, head_dim) и permute -> (B, heads, seq, head_dim);
-        - вызвать scaled_dot_product_attention;
-        - склеить головы обратно в (B, seq, embed_dim);
-        - прогнать через out_proj.
+    Идея: вместо одной «большой» головы режу embed_dim на num_heads кусков
+    по head_dim и считаю внимание в каждом куске независимо. Так модель может
+    параллельно смотреть на разные связи между токенами.
     """
 
     def __init__(self, embed_dim: int = 768, num_heads: int = 12) -> None:
         super().__init__()
-        raise NotImplementedError("Шаг 2: дописать multi-head self-attention")
+        assert embed_dim % num_heads == 0, "embed_dim должен делиться на num_heads"
+
+        self.num_heads = num_heads
+        self.head_dim = embed_dim // num_heads
+
+        # три отдельных Linear под Q, K, V — как в HF ViT (bias=True по умолчанию)
+        self.q_proj = nn.Linear(embed_dim, embed_dim)
+        self.k_proj = nn.Linear(embed_dim, embed_dim)
+        self.v_proj = nn.Linear(embed_dim, embed_dim)
+
+        # выходная проекция, чтобы перемешать информацию между головами
+        self.out_proj = nn.Linear(embed_dim, embed_dim)
+
+    def _split_heads(self, x: torch.Tensor) -> torch.Tensor:
+        # (B, seq, dim) -> (B, seq, heads, head_dim) -> (B, heads, seq, head_dim)
+        B, seq, _ = x.shape
+        x = x.view(B, seq, self.num_heads, self.head_dim)
+        return x.permute(0, 2, 1, 3)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        raise NotImplementedError("Шаг 2: дописать forward MHSA")
+        B, seq, dim = x.shape
+
+        # считаю Q, K, V и сразу раскладываю по головам
+        q = self._split_heads(self.q_proj(x))
+        k = self._split_heads(self.k_proj(x))
+        v = self._split_heads(self.v_proj(x))
+
+        # внимание в каждой голове независимо (карты внимания тут не нужны)
+        out, _ = scaled_dot_product_attention(q, k, v)
+
+        # склеиваю головы обратно: (B, heads, seq, head_dim) -> (B, seq, dim)
+        out = out.permute(0, 2, 1, 3).contiguous().view(B, seq, dim)
+
+        return self.out_proj(out)
 
 
 # ---------------------------------------------------------------------------
@@ -147,44 +144,40 @@ class MultiHeadSelfAttention(nn.Module):
 class MLP(nn.Module):
     """Позиционный MLP блока энкодера: Linear -> GELU -> Linear.
 
-    TODO (Шаг 3):
-      - fc1: nn.Linear(embed_dim, embed_dim * mlp_ratio)
-      - act: nn.GELU()
-      - fc2: nn.Linear(embed_dim * mlp_ratio, embed_dim)
-      - forward: fc2(act(fc1(x)))
+    Работает с каждым токеном независимо. Внимание перемешивает информацию
+    МЕЖДУ токенами, а этот MLP — ВНУТРИ одного токена, между его признаками.
     """
 
     def __init__(self, embed_dim: int = 768, mlp_ratio: int = 4) -> None:
         super().__init__()
-        raise NotImplementedError("Шаг 3: дописать MLP")
+        hidden_dim = embed_dim * mlp_ratio
+        self.fc1 = nn.Linear(embed_dim, hidden_dim)
+        self.act = nn.GELU()
+        self.fc2 = nn.Linear(hidden_dim, embed_dim)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        raise NotImplementedError("Шаг 3: дописать forward MLP")
+        return self.fc2(self.act(self.fc1(x)))
 
 
 # ---------------------------------------------------------------------------
 # Шаг 4. Encoder Block (аналог одного ViTLayer)
 # ---------------------------------------------------------------------------
 class EncoderBlock(nn.Module):
-    """Один блок Transformer Encoder (pre-norm): (B, seq, dim) -> (B, seq, dim).
-
-    TODO (Шаг 4):
-      - norm1 = nn.LayerNorm(embed_dim, eps=1e-12)  # eps как в HF ViT
-      - attn  = MultiHeadSelfAttention(...)
-      - norm2 = nn.LayerNorm(embed_dim, eps=1e-12)
-      - mlp   = MLP(...)
-      forward(x):
-        x = x + attn(norm1(x))   # 1-я residual-связь
-        x = x + mlp(norm2(x))    # 2-я residual-связь
-        return x
-    """
+    """Один блок Transformer Encoder (pre-norm): (B, seq, dim) -> (B, seq, dim)."""
 
     def __init__(self, embed_dim: int = 768, num_heads: int = 12, mlp_ratio: int = 4) -> None:
         super().__init__()
-        raise NotImplementedError("Шаг 4: собрать encoder block")
+        # eps=1e-12 — как в HF ViT, чтобы поведение совпадало
+        self.norm1 = nn.LayerNorm(embed_dim, eps=1e-12)
+        self.attn = MultiHeadSelfAttention(embed_dim, num_heads)
+        self.norm2 = nn.LayerNorm(embed_dim, eps=1e-12)
+        self.mlp = MLP(embed_dim, mlp_ratio)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        raise NotImplementedError("Шаг 4: дописать forward блока")
+        # pre-norm: нормирую ВХОД под-слоя, а результат прибавляю к x (residual)
+        x = x + self.attn(self.norm1(x))   # 1-я residual-связь
+        x = x + self.mlp(self.norm2(x))    # 2-я residual-связь
+        return x
 
 
 # ---------------------------------------------------------------------------
@@ -194,13 +187,6 @@ class TransformerEncoder(nn.Module):
     """Стек из num_layers блоков + финальный LayerNorm.
 
     Полный аналог того, что в проекте я беру как backbone.layers + layernorm.
-
-    TODO (Шаг 5):
-      - blocks: nn.ModuleList([EncoderBlock(...) for _ in range(num_layers)])
-      - norm:   nn.LayerNorm(embed_dim, eps=1e-12)
-      forward(x):
-        for block in blocks: x = block(x)
-        return norm(x)
     """
 
     def __init__(
@@ -211,20 +197,24 @@ class TransformerEncoder(nn.Module):
         mlp_ratio: int = 4,
     ) -> None:
         super().__init__()
-        raise NotImplementedError("Шаг 5: собрать полный стек энкодера")
+        self.blocks = nn.ModuleList(
+            [EncoderBlock(embed_dim, num_heads, mlp_ratio) for _ in range(num_layers)]
+        )
+        self.norm = nn.LayerNorm(embed_dim, eps=1e-12)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        raise NotImplementedError("Шаг 5: дописать forward стека")
+        for block in self.blocks:
+            x = block(x)
+        return self.norm(x)
 
 
 # ---------------------------------------------------------------------------
 # Шаг 6 (опционально). Быстрая самопроверка форм
 # ---------------------------------------------------------------------------
 if __name__ == "__main__":
-    # После реализации прогоню фиктивный батч и проверю формы.
-    # x = torch.randn(2, 197, 768)
-    # encoder = TransformerEncoder()
-    # y = encoder(x)
-    # assert y.shape == x.shape
-    # print("OK:", y.shape)
-    raise SystemExit("Дописать шаги 1-5, затем раскомментировать проверку.")
+    x = torch.randn(2, 197, 768)
+    encoder = TransformerEncoder()
+    y = encoder(x)
+    assert y.shape == x.shape, f"форма не совпала: {y.shape}"
+    assert torch.isfinite(y).all(), "в выходе появились nan/inf"
+    print("OK:", tuple(y.shape))

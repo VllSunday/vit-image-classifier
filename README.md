@@ -44,7 +44,7 @@ vit-image-classifier/
 │   ├── models/
 │   │   ├── patch_embedding.py  # патчи + CLS + позиционные
 │   │   ├── vit.py              # вся модель: свои части + backbone + голова
-│   │   └── encoder_from_scratch.py  # отдельный Transformer-энкодер
+│   │   └── encoder_from_scratch.py  # Transformer-энкодер руками, для разбора
 │   ├── config.py               # гиперпараметры
 │   ├── train.py                # цикл обучения
 │   ├── evaluate.py             # метрики на тесте
@@ -188,6 +188,21 @@ docker run -p 7860:7860 vit-classifier      # http://localhost:7860
 модели с нуля данных не хватает — ViT-ам нужно много.
 
 Confusion matrix по каждому прогону лежат в [`reports/`](reports/).
+
+## Энкодер с нуля (для себя)
+
+В основной модели стек блоков Transformer Encoder я беру готовым из transformers
+(`backbone.layers`). Чтобы он не оставался для меня чёрным ящиком, в
+[`src/models/encoder_from_scratch.py`](src/models/encoder_from_scratch.py) я
+расписал его сам, без библиотеки: scaled dot-product attention, многоголовое
+самовнимание, позиционный MLP, pre-norm блок и весь стек с финальным LayerNorm.
+
+Модуль самодостаточный и в пайплайн не встроен — это разбор темы. Быстрая
+самопроверка форм:
+
+```bash
+python -m src.models.encoder_from_scratch   # OK: (2, 197, 768)
+```
 
 ## Стек
 

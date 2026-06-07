@@ -4,6 +4,8 @@
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
+![Демо на Gradio](docs/demo-preview.png)
+
 Дообучение Vision Transformer (`google/vit-base-patch16-224`) на три класса:
 cat / dog / panda.
 

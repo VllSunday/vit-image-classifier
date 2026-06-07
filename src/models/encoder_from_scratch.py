@@ -52,8 +52,8 @@ from __future__ import annotations
 import math
 
 import torch
-from torch import nn
 import torch.nn.functional as F
+from torch import nn
 
 
 # ---------------------------------------------------------------------------
@@ -175,8 +175,8 @@ class EncoderBlock(nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         # pre-norm: нормирую ВХОД под-слоя, а результат прибавляю к x (residual)
-        x = x + self.attn(self.norm1(x))   # 1-я residual-связь
-        x = x + self.mlp(self.norm2(x))    # 2-я residual-связь
+        x = x + self.attn(self.norm1(x))  # 1-я residual-связь
+        x = x + self.mlp(self.norm2(x))  # 2-я residual-связь
         return x
 
 
